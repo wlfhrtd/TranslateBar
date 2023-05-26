@@ -2,7 +2,7 @@
 
 Desktop-oriented widget application for convenient access to Google Translate service.
 
-Currently, it is initial and minimal version for personal usage, but there are many scalability opportunities.
+Currently, it is initial and minimal version for personal usage, but there are many extensibility opportunities.
 
 Written with Qt Quick(QML) C++ -based framework.
 
