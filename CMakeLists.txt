@@ -10,8 +10,8 @@ qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_executable(appTranslateBar
     main.cpp
-    languageguesser.h
-    languageguesser.cpp
+    inputvalidator.h
+    inputvalidator.cpp
     translater.h
     translater.cpp
     networkmodule.h

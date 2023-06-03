@@ -1,9 +1,9 @@
 import QtQuick
 import QtQuick.Window
-import QtQuick.Controls 6.3
-import QtQuick.Layouts 6.3
+import QtQuick.Controls
+import QtQuick.Layouts
 
-import com.application.languageguesser 1.0
+import com.application.inputvalidator 1.0
 import com.application.translater 1.0
 import com.application.settingsmanager 1.0
 
@@ -29,6 +29,12 @@ Window {
 
         btnSubmit.enabled = true
     }
+    function switchInputMethod() {
+        let currentLanguageFromIndexTemporary = dialogSettings.languageFromIndex
+        dialogSettings.languageFromIndex = dialogSettings.languageToIndex
+        dialogSettings.languageToIndex = currentLanguageFromIndexTemporary
+    }
+
     function saveAppSettings() {
         settingsManager.saveSettings(
                     Qt.application.name,
@@ -38,16 +44,20 @@ Window {
                         "WindowY" : root.y,
                         "WindowWidth" : root.width,
                         "WindowHeight" : root.height,
-                        "AlwaysOnTop" : alwaysOnTop.checked ? 1 : 0 // win32 registry has no boolean type; |0 or ^0 should be slower
+                        "AlwaysOnTop" : checkBoxAlwaysOnTop.checked ? 1 : 0, // win32 registry has no boolean type; |0 or ^0 should be slower
+                        "LanguageFromIndex" : comboBoxLanguageFrom.currentIndex,
+                        "LanguageToIndex" : comboBoxLanguageTo.currentIndex
                     })
     }
     //                                 => error                                          => error
-    // app flow: ui => LanguageGuesser => result => Translater {Network => error/result} => result
+    //  app flow: ui => InputValidator => result => Translater {Network => error/result} => result
     Component.onCompleted: {
+        Qt.inputMethod.localeChanged.connect(switchInputMethod)
+
         btnSubmit.clicked.connect(btnSubmit.submit)
 
-        languageGuesser.resultReady.connect(languageGuesser.passInputToTranslater)
-        languageGuesser.errorOccurred.connect(languageGuesser.stopOnError)
+        inputValidator.resultReady.connect(inputValidator.passInputToTranslater)
+        inputValidator.errorOccurred.connect(inputValidator.stopOnError)
 
         translater.translationReady.connect(translater.showResult)
         translater.errorOccurred.connect(translater.stopOnError)
@@ -59,20 +69,24 @@ Window {
         root.y = settings["WindowY"]
         root.width = settings["WindowWidth"]
         root.height = settings["WindowHeight"]
-        alwaysOnTop.checked = settings["AlwaysOnTop"]
+        checkBoxAlwaysOnTop.checked = settings["AlwaysOnTop"]
+        comboBoxLanguageFrom.currentIndex = settings["LanguageFromIndex"]
+        comboBoxLanguageTo.currentIndex  = settings["LanguageToIndex"]
     }
 
-    LanguageGuesser {
-        id: languageGuesser
+    InputValidator {
+        id: inputValidator
 
         function passInputToTranslater() {
-            btnSubmit.text = languageGuesser.result.toLocaleUpperCase()
-
-            translater.doTranslation(languageGuesser.result, languageGuesser.input)
+            translater.doTranslation(
+                        listModelAllLanguages.get(dialogSettings.languageFromIndex).value,
+                        listModelAllLanguages.get(dialogSettings.languageToIndex).value,
+                        inputValidator.result
+                        )
         }
 
         function stopOnError() {
-            popupMsg.messageText = languageGuesser.errorMessage
+            popupMsg.messageText = inputValidator.errorMessage
             popupMsg.open()
 
             unlockUI()
@@ -105,7 +119,11 @@ Window {
                 text: qsTr("OK")
                 anchors.horizontalCenter: parent.horizontalCenter
 
-                onClicked: popupMsg.close()
+                onClicked: {
+                    popupMsg.close()
+                    textInput.focus = true
+                    textInput.selectAll()
+                }
             }
         }
     }
@@ -129,38 +147,114 @@ Window {
         }
     }
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+    Dialog {
+        id: dialogSettings
+        title: "Title"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        modal: true
 
-        onClicked: mouse => {
-                       if(mouse.button === Qt.RightButton) {
-                           contextMenu.popup()
-                       }
-                   }
+        property int languageFromIndex: 0
+        property int languageToIndex: 0
+        property bool alwaysOnTop: false
 
-        onPressAndHold: mouse => {
-                            if (mouse.source === Qt.MouseEventNotSynthesized) {
-                                contextMenu.popup()
-                            }
-                        }
+        Component.onCompleted: {
+            dialogSettings.languageFromIndex = comboBoxLanguageFrom.currentIndex
+            dialogSettings.languageToIndex = comboBoxLanguageTo.currentIndex
+            dialogSettings.alwaysOnTop = checkBoxAlwaysOnTop.checked
+        }
 
-        Menu {
-            id: contextMenu
+        onAccepted: {
+            dialogSettings.languageFromIndex = comboBoxLanguageFrom.currentIndex
+            dialogSettings.languageToIndex = comboBoxLanguageTo.currentIndex
+            dialogSettings.alwaysOnTop = checkBoxAlwaysOnTop.checked
+        }
 
-            MenuItem {
-                id: alwaysOnTop
+        onRejected: {
+            comboBoxLanguageFrom.currentIndex = dialogSettings.languageFromIndex
+            comboBoxLanguageTo.currentIndex = dialogSettings.languageToIndex
+            checkBoxAlwaysOnTop.checked = dialogSettings.alwaysOnTop
+        }
 
-                checkable: true
-                text: "Always on top"
-                onCheckedChanged: {
-                    if(!checked) {
-                        root.flags ^= Qt.WindowStaysOnTopHint
+        onAlwaysOnTopChanged: {
+            if(!dialogSettings.alwaysOnTop) {
+                root.flags ^= Qt.WindowStaysOnTopHint
 
-                        return;
-                    }
+                return;
+            }
 
-                    root.flags |= Qt.WindowStaysOnTopHint
+            root.flags |= Qt.WindowStaysOnTopHint
+        }
+
+        ListModel {
+            id: listModelAllLanguages
+
+            ListElement {
+                text: "English"
+                value: "en"
+            }
+            ListElement {
+                text: "Russian"
+                value: "ru"
+            }
+        }
+
+        ColumnLayout {
+            RowLayout {
+                Label {
+                    text: "FROM"
+                }
+
+                ComboBox {
+                    id: comboBoxLanguageFrom
+                    textRole: "text"
+                    valueRole: "value"
+
+                    model: listModelAllLanguages
+                }
+
+                Label {
+                    text: "TO"
+                }
+
+                ComboBox {
+                    id: comboBoxLanguageTo
+                    textRole: "text"
+                    valueRole: "value"
+
+                    model: listModelAllLanguages
+                }
+            }
+
+            CheckBox {
+                id: checkBoxAlwaysOnTop
+                text: qsTr("Always On Top")
+            }
+
+            RowLayout {
+                Label {
+                    text: qsTr("Current window position: ")
+                }
+
+                Text {
+                    text: root.x
+                }
+
+                Text {
+                    text: root.y
+                }
+            }
+
+            RowLayout {
+                Label {
+                    text: qsTr("Current window size: ")
+                }
+
+                Text {
+                    text: root.width
+                }
+
+                Text {
+                    text: root.height
                 }
             }
         }
@@ -184,6 +278,35 @@ Window {
             horizontalAlignment: TextInput.AlignLeft
 
             focus: true
+
+            MouseArea {
+                anchors.fill: textInput
+                acceptedButtons: Qt.RightButton
+
+                onClicked: mouse => {
+                               if(mouse.button === Qt.RightButton) {
+                                   contextMenu.popup()
+                               }
+                           }
+
+                onPressAndHold: mouse => {
+                                    if (mouse.source === Qt.MouseEventNotSynthesized) {
+                                        contextMenu.popup()
+                                    }
+                                }
+
+                Menu {
+                    id: contextMenu
+
+                    MenuItem {
+                        text: "Settings"
+
+                        onClicked: {
+                            dialogSettings.open()
+                        }
+                    }
+                }
+            }
         }
 
         Button {
@@ -194,12 +317,29 @@ Window {
 
             font.pixelSize: 36
 
-            text: qsTr("N/A")
+            text: listModelAllLanguages.get(dialogSettings.languageFromIndex).value.toUpperCase() + " >> " + listModelAllLanguages.get(dialogSettings.languageToIndex).value.toUpperCase()
 
             function submit() {
                 lockUI()
 
-                languageGuesser.doGuess(textInput.text)
+                inputValidator.validate(textInput.text)
+            }
+
+            MouseArea {
+                anchors.fill: btnSubmit
+                acceptedButtons: Qt.RightButton
+
+                onClicked: mouse => {
+                               if(mouse.button === Qt.RightButton) {
+                                   switchInputMethod()
+                               }
+                           }
+
+                onPressAndHold: mouse => {
+                                    if (mouse.source === Qt.MouseEventNotSynthesized) {
+                                        switchInputMethod()
+                                    }
+                                }
             }
         }
 
