@@ -1,10 +1,6 @@
 #include "translater.h"
 
 
-// const QRegularExpression Translater::regex_parsing_from_en_to_ru("\"([- \u0400-\u04FF]+)\"", QRegularExpression::CaseInsensitiveOption);
-// const QRegularExpression Translater::regex_parsing_from_ru_to_en("\"([- a-z]+)\"", QRegularExpression::CaseInsensitiveOption);
-
-
 Translater::Translater(QObject *parent)
     : QObject{parent}
     , m_word_to_translate("")
@@ -29,18 +25,7 @@ void Translater::onNetworkResponseReady()
 {
     QString json = m_network_module->jsonResponse();
 
-//    QRegularExpressionMatchIterator it;
-//    m_language_id == "en"
-//        ? it = regex_parsing_from_en_to_ru.globalMatch(json)
-//        : it = regex_parsing_from_ru_to_en.globalMatch(json);
-
     QStringList words = json.split('"'); // [[["кот","cat",null,null,10]],null,"en",null,null,null,null,[]]
-
-//    while (it.hasNext()) {
-//        QRegularExpressionMatch match = it.next();
-//        QString word = match.captured(1);
-//        words.emplace_back(word);
-//    }
 
     if(words.size() == 0) {
         m_error_message = QString::asprintf("file:///%s:%i: %s", __FILE__, __LINE__, "JSON PARSE ERROR! OUTPUT IS EMPTY");

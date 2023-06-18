@@ -7,6 +7,8 @@ import com.application.inputvalidator 1.0
 import com.application.translater 1.0
 import com.application.settingsmanager 1.0
 
+import "qrc:///"
+
 
 Window {
     id: root
@@ -15,7 +17,7 @@ Window {
     width: 278
     height: 44
     visible: true
-    title: qsTr("TranslateBar")
+    title: "TranslateBar"
 
     property bool is_running: false
 
@@ -79,8 +81,8 @@ Window {
 
         function passInputToTranslater() {
             translater.doTranslation(
-                        listModelAllLanguages.get(dialogSettings.languageFromIndex).value,
-                        listModelAllLanguages.get(dialogSettings.languageToIndex).value,
+                        listModelLanguages.get(dialogSettings.languageFromIndex).value,
+                        listModelLanguages.get(dialogSettings.languageToIndex).value,
                         inputValidator.result
                         )
         }
@@ -147,11 +149,18 @@ Window {
         }
     }
 
-    Dialog {
+    Dialog {        
         id: dialogSettings
-        title: "Title"
+        title: qsTr("Settings")
         standardButtons: Dialog.Ok | Dialog.Cancel
         modal: true
+        focus: true
+
+        anchors.centerIn: parent
+        width: root.width / 2
+        height: root.height / 2
+        parent: Overlay.overlay
+        closePolicy: Popup.CloseOnEscape
 
         property int languageFromIndex: 0
         property int languageToIndex: 0
@@ -185,19 +194,6 @@ Window {
             root.flags |= Qt.WindowStaysOnTopHint
         }
 
-        ListModel {
-            id: listModelAllLanguages
-
-            ListElement {
-                text: "English"
-                value: "en"
-            }
-            ListElement {
-                text: "Russian"
-                value: "ru"
-            }
-        }
-
         ColumnLayout {
             RowLayout {
                 Label {
@@ -209,7 +205,7 @@ Window {
                     textRole: "text"
                     valueRole: "value"
 
-                    model: listModelAllLanguages
+                    model: listModelLanguages
                 }
 
                 Label {
@@ -220,8 +216,8 @@ Window {
                     id: comboBoxLanguageTo
                     textRole: "text"
                     valueRole: "value"
-
-                    model: listModelAllLanguages
+                    currentIndex: 0
+                    model: listModelLanguages
                 }
             }
 
@@ -317,7 +313,7 @@ Window {
 
             font.pixelSize: 36
 
-            text: listModelAllLanguages.get(dialogSettings.languageFromIndex).value.toUpperCase() + " >> " + listModelAllLanguages.get(dialogSettings.languageToIndex).value.toUpperCase()
+            text: listModelLanguages.get(dialogSettings.languageFromIndex).value.toUpperCase() + " >> " + listModelLanguages.get(dialogSettings.languageToIndex).value.toUpperCase()
 
             function submit() {
                 lockUI()
@@ -350,6 +346,10 @@ Window {
         Keys.onReturnPressed: {
             btnSubmit.clicked()
         }
+    }
+
+    LanguagesListModel {
+        id: listModelLanguages
     }
 
     SettingsManager {

@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(TranslateBar VERSION 0.1 LANGUAGES CXX)
+project(appTranslateBar VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Quick)
 
@@ -10,6 +11,7 @@ qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_executable(appTranslateBar
     main.cpp
+    qml.qrc
     inputvalidator.h
     inputvalidator.cpp
     translater.h
@@ -43,3 +45,6 @@ install(TARGETS appTranslateBar
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+if (ANDROID)
+    include(E:/Android/android-sdk/android_openssl/CMakeLists.txt)
+endif()
